@@ -1,55 +1,33 @@
-/* ─── Dependencies ────────────────────────────── */
-const fs        = require('fs');               // only for exec path detection
+/* ─── Dependencies ─────────────────────────── */
 const express   = require('express');
-const puppeteer = require('puppeteer-core');   // lightweight puppeteer
+const puppeteer = require('puppeteer-core');
 
-/* Node ≥18 has global fetch */
+/* Node 18+ 已內建 fetch */
 const fetch = globalThis.fetch;
 
 /* ─── Basic Config ─────────────────────────── */
 const app  = express();
-const port = process.env.PORT || 3000;         // Render sets PORT=8080
+const PORT = process.env.PORT || 8080;                     // Render 會自動注入
 const URL  = 'https://value-investment-analysis-website.streamlit.app/';
 
-/* ─── Helper: detect a usable Chrome/Chromium binary ─ */
-function detectChrome() {
-  const candidates = [
-    process.env.PUPPETEER_EXECUTABLE_PATH,     // honour env first
-    '/usr/bin/chromium',
-    '/usr/bin/chromium-browser',
-    '/usr/bin/google-chrome',
-    '/opt/chrome/chrome',
-    '/opt/google/chrome/chrome',
-  ].filter(Boolean);
-
-  for (const path of candidates) {
-    try {
-      fs.accessSync(path, fs.constants.X_OK);
-      return path;                             // first executable found
-    } catch { /* not executable – keep looking */ }
-  }
-  return null;                                 // fall back to Chrome channel
-}
-
-/* ─── Root route (health check) ────────────── */
+/* ─── Root (health check) ───────────────────── */
 app.get('/', (_req, res) => res.send('🟢 Service OK — hit /trigger'));
 
-/* ─── Main trigger ─────────────────────────── */
+/* ─── Main trigger ──────────────────────────── */
 app.get('/trigger', async (_req, res) => {
   try {
-    /* Step‑1: HEAD ping to wake Streamlit */
+    /* Step-1: HEAD ping 喚醒 Streamlit */
     console.log('🔔  Pinging Streamlit (HEAD)…');
     await fetch(URL, { method: 'HEAD', redirect: 'manual', cache: 'no-store', timeout: 60_000 });
     console.log('✅  Ping OK — Launching Puppeteer');
 
-    /* Step‑2: Launch Puppeteer */
-    const executablePath = detectChrome();
-    const launchOpts = executablePath
-      ? { headless: 'new', executablePath, args: ['--no-sandbox', '--disable-dev-shm-usage'] }
-      : { headless: 'new', channel: 'chrome' };    // local dev
-
-    const browser = await puppeteer.launch(launchOpts);
-    const page    = await browser.newPage();
+    /* Step-2: Puppeteer (用系統 Chromium) */
+    const browser = await puppeteer.launch({
+      headless       : 'new',
+      executablePath : process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
+      args           : ['--no-sandbox', '--disable-dev-shm-usage'],
+    });
+    const page = await browser.newPage();
     await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 120_000 });
     await browser.close();
 
@@ -62,4 +40,4 @@ app.get('/trigger', async (_req, res) => {
 });
 
 /* ─── Start server ─────────────────────────── */
-app.listen(port, () => console.log(`🚀  Server listening on ${port}`));
+app.listen(PORT, () => console.log(`🚀  Server listening on ${PORT}`));

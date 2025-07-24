@@ -1,8 +1,6 @@
 {
     "name": "trigger-streamlit",
     "version": "1.0.0",
-    "description": "Trigger Streamlit via puppeteer-core + system Chromium",
-    "main": "server.js",
     "type": "commonjs",
     "scripts": {
       "start": "node server.js"
