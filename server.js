@@ -23,10 +23,10 @@ app.get('/trigger', async (_req, res) => {
 
     /* Step-2: Puppeteer (固定 Debian-Chromium 路徑) */
     const browser = await puppeteer.launch({
-      headless       : 'new',
-      executablePath: '/usr/bin/chromium',   // ← 這才是可執行檔
-      args           : ['--no-sandbox', '--disable-dev-shm-usage'],
-    });
+        headless       : 'new',
+        executablePath : process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
+        args           : ['--no-sandbox', '--disable-dev-shm-usage'],
+      });
 
     const page = await browser.newPage();
     await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 120_000 });
