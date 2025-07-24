@@ -34,7 +34,7 @@ app.get('/trigger', async (_req, res) => {
     const page = await browser.newPage();
     await page.goto(
       'https://value-investment-analysis-website.streamlit.app/',
-      { waitUntil: 'networkidle2', timeout: 120_000 },
+      { waitUntil: 'networkidle2', timeout: 240_000 },
     );
     await browser.close();
     res.send('✅ Streamlit page triggered successfully');
