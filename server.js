@@ -1,30 +1,13 @@
 /* ─── 依賴 ─────────────────────────────── */
-const fs        = require('fs');
+const fs        = require('fs');               // 其實後面已經不需要 fs，可刪
 const express   = require('express');
-const puppeteer = require('puppeteer-core');
-const chromium  = require('@sparticuz/chromium');
-
-/* Node 18+ 內建 fetch */
-const fetch = globalThis.fetch;
+const puppeteer = require('puppeteer-core');   // ← 用 puppeteer-core
+// const chromium  = require('@sparticuz/chromium'); ← 整包刪掉，package.json 也移除
 
 /* ─── 基本設定 ─────────────────────────── */
-const isLinux = process.platform === 'linux';
-const app     = express();
-const port    = process.env.PORT || 3000;
-const URL     = 'https://value-investment-analysis-website.streamlit.app/';
-
-/* ─── Linux: 把 bundled Chromium 安全複製到 /tmp ─ */
-async function chromePath() {
-  if (!isLinux) return undefined;
-
-  const src = await chromium.executablePath();
-  const dst = '/tmp/chrome';
-  if (!fs.existsSync(dst)) {
-    fs.copyFileSync(src, dst);
-    fs.chmodSync(dst, 0o755);                    // 確保可執行
-  }
-  return dst;
-}
+const app  = express();
+const port = process.env.PORT || 3000;         // Render 會給 PORT=8080
+const URL  = 'https://value-investment-analysis-website.streamlit.app/';
 
 /* ─── 根路由（健康檢查）──────────────────── */
 app.get('/', (_req, res) => res.send('🟢 Service OK — hit /trigger'));
@@ -34,26 +17,20 @@ app.get('/trigger', async (_req, res) => {
   try {
     /* Step-1: HEAD Ping（不追蹤 302）喚醒 Streamlit */
     console.log('🔔  Pinging Streamlit (HEAD)…');
-    await fetch(URL, {
-      method   : 'HEAD',
-      redirect : 'manual',
-      cache    : 'no-store',
-      timeout  : 60_000,
-    });
+    await fetch(URL, { method: 'HEAD', redirect: 'manual', cache: 'no-store', timeout: 60_000 });
     console.log('✅  Ping OK — Launching Puppeteer');
 
-    /* Step-2: Puppeteer 載入（Streamlit 已熱啟） */
-    const launchOpts = {
-      headless       : isLinux ? chromium.headless : 'new',
-      args           : isLinux ? chromium.args     : ['--no-sandbox'],
-      defaultViewport: chromium.defaultViewport,
-    };
-
-    if (isLinux) {
-      launchOpts.executablePath = await chromePath(); // Linux 用 bundled binary
-    } else {
-      launchOpts.channel = 'chrome';                  // mac/Win 用系統 Chrome
-    }
+    /* Step-2: Puppeteer 載入 ── Linux 用系統 Chrome，桌面環境則用 channel:'chrome' */
+    const launchOpts = process.env.PUPPETEER_EXECUTABLE_PATH
+      ? {                                              // 伺服器（Render）
+          headless: 'new',
+          executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
+          args: ['--no-sandbox', '--disable-dev-shm-usage'],
+        }
+      : {                                              // 本機開發（Mac/Win）
+          headless: 'new',
+          channel : 'chrome',
+        };
 
     const browser = await puppeteer.launch(launchOpts);
     const page    = await browser.newPage();
