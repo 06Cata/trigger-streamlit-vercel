@@ -9,17 +9,15 @@ app.get('/trigger', async (req, res) => {
     const browser = await puppeteer.launch({
       headless: 'new',
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      executablePath: puppeteer.executablePath(),  // ⬅️ 這一行讓它用內建 Chromium
     });
 
     const page = await browser.newPage();
-
-    console.log('🚀 Navigating to Streamlit page...');
+    console.log('🚀 Visiting Streamlit page...');
     await page.goto('https://value-investment-analysis-website.streamlit.app/', {
       waitUntil: 'networkidle2',
-      timeout: 120000, // 調高 timeout 到 2 分鐘
+      timeout: 120000,
     });
-
-    console.log('✅ Streamlit page visited successfully');
 
     await browser.close();
     res.send('✅ Streamlit page triggered successfully');
