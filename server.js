@@ -21,12 +21,13 @@ app.get('/trigger', async (_req, res) => {
     await fetch(URL, { method: 'HEAD', redirect: 'manual', cache: 'no-store', timeout: 60_000 });
     console.log('✅  Ping OK — Launching Puppeteer');
 
-    /* Step-2: Puppeteer (用系統 Chromium) */
+    /* Step-2: Puppeteer (固定 Debian-Chromium 路徑) */
     const browser = await puppeteer.launch({
       headless       : 'new',
-      executablePath : process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
+      executablePath : '/usr/lib/chromium/chromium',   // ← 寫死路徑
       args           : ['--no-sandbox', '--disable-dev-shm-usage'],
     });
+
     const page = await browser.newPage();
     await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 120_000 });
     await browser.close();
