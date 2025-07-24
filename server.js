@@ -1,27 +1,41 @@
-const express = require('express');
+const fs        = require('fs');
+const path      = require('path');
+const express   = require('express');
 const puppeteer = require('puppeteer-core');
-const chromium = require('@sparticuz/chromium');  // ★ 讀取雲端版 Chromium
+const chromium  = require('@sparticuz/chromium');
 
+const isLinux = process.platform === 'linux';
 const app  = express();
 const port = process.env.PORT || 3000;
 
+// 取得真正可執行檔路徑（Linux 才需要）
+async function getChromePath() {
+  if (!isLinux) return undefined;
+
+  const src = await chromium.executablePath();
+  const dst = '/tmp/chrome';                 // 可寫入且 no-exec lock
+
+  if (!fs.existsSync(dst)) {
+    fs.copyFileSync(src, dst);
+    fs.chmodSync(dst, 0o755);                // 確保有執行權限
+  }
+  return dst;
+}
+
 app.get('/trigger', async (_req, res) => {
   try {
-    console.log('🚀  Launching bundled Chromium...');
     const browser = await puppeteer.launch({
-      executablePath: await chromium.executablePath(), // ★ 指定內建執行檔
-      headless      : chromium.headless,               // 雲端友善的 headless 參數
-      args          : chromium.args,                   // 必要啟動參數
+      executablePath: await getChromePath(), // mac/Win 會傳 undefined → puppeteer 自動尋找
+      headless      : isLinux ? chromium.headless : 'new',
+      args          : isLinux ? chromium.args     : ['--no-sandbox'],
       defaultViewport: chromium.defaultViewport,
     });
 
     const page = await browser.newPage();
-    console.log('🌐  Hitting Streamlit …');
     await page.goto(
       'https://value-investment-analysis-website.streamlit.app/',
       { waitUntil: 'networkidle2', timeout: 120_000 },
     );
-
     await browser.close();
     res.send('✅ Streamlit page triggered successfully');
   } catch (err) {
@@ -30,4 +44,4 @@ app.get('/trigger', async (_req, res) => {
   }
 });
 
-app.listen(port, () => console.log(`🚀  Server listening on ${port}`));
+app.listen(port, () => console.log(`🚀  Server on ${port}`));
