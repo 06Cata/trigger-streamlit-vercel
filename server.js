@@ -24,7 +24,7 @@ app.get('/trigger', async (_req, res) => {
     /* Step-2: Puppeteer (固定 Debian-Chromium 路徑) */
     const browser = await puppeteer.launch({
       headless       : 'new',
-      executablePath : '/usr/lib/chromium/chromium',   // ← 寫死路徑
+      executablePath : '/usr/lib/chromium',   // ← 寫死路徑
       args           : ['--no-sandbox', '--disable-dev-shm-usage'],
     });
 

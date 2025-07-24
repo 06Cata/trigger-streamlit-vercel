@@ -19,7 +19,7 @@
     
     # Puppeteer 相關 env
     ENV PUPPETEER_SKIP_DOWNLOAD=true \
-        PUPPETEER_EXECUTABLE_PATH=/usr/lib/chromium/chromium \
+        PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \   # ← 改這裡
         PORT=8080
     
     # --- App --------------------------------------------------------------------
