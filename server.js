@@ -7,19 +7,20 @@ const port = process.env.PORT || 3000;
 app.get('/trigger', async (req, res) => {
   try {
     const browser = await puppeteer.launch({
-      headless: 'new',
+      headless: true, // ✅ 更穩定的 headless 模式
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
+
     const page = await browser.newPage();
     await page.goto('https://value-investment-analysis-website.streamlit.app/', {
       waitUntil: 'networkidle2',
-      timeout: 60000,
+      timeout: 120000, // ✅ 拉長 timeout
     });
-    await browser.close();
 
+    await browser.close();
     res.send('✅ Streamlit page triggered successfully');
   } catch (err) {
-    console.error(err);
+    console.error('❌ Trigger Error:', err); // ✅ 印出錯誤細節
     res.status(500).send('❌ Failed to trigger Streamlit');
   }
 });
