@@ -18,7 +18,7 @@
     ENV NODE_VERSION=20.14.0
     RUN curl -fsSL https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.xz \
         | tar -xJf - -C /usr/local --strip-components=1
-    
+    ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
     # Puppeteer 相關 env
     ENV PUPPETEER_SKIP_DOWNLOAD=true \
         PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \

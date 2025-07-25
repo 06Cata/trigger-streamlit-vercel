@@ -1,20 +1,21 @@
 /* ─── Dependencies ─────────────────────────── */
 const express   = require('express');
 const puppeteer = require('puppeteer-core');
-const fs        = require('fs');                 // 只用來偵測執行檔存在
+const fs        = require('fs');
+const { execSync } = require('child_process');
 
-/* Node ≥18 已內建 fetch */
+/* Node ≥18 內建 fetch */
 const fetch = globalThis.fetch;
 
 /* ─── Basic Config ─────────────────────────── */
 const app  = express();
-const PORT = process.env.PORT || 8080;           // Render 會自動注入
+const PORT = process.env.PORT || 8080;
 const URL  = 'https://value-investment-analysis-website.streamlit.app/';
 
-/* ─── Helper: 找到可執行的 Chrome / Chromium ─ */
+/* ─── Helper: 找到可執行的 Chrome/Chromium ─── */
 function detectChrome() {
   const candidates = [
-    process.env.PUPPETEER_EXECUTABLE_PATH,       // 優先使用環境變數
+    process.env.PUPPETEER_EXECUTABLE_PATH,
     '/usr/lib/chromium/chromium',
     '/usr/lib/chromium',
     '/usr/bin/chromium',
@@ -23,13 +24,26 @@ function detectChrome() {
     '/opt/google/chrome/chrome'
   ].filter(Boolean);
 
+  console.log('🔎  Scanning Chrome candidates ……');
   for (const p of candidates) {
-    try {
-      fs.accessSync(p, fs.constants.X_OK);
-      return p;                                  // 找到即可用
-    } catch { /* 繼續嘗試下一條路徑 */ }
+    if (fs.existsSync(p)) {
+      console.log(`   ✔ Found: ${p}`);
+      return p;
+    }
+    console.log(`   ✘ Not found: ${p}`);
   }
-  return null;                                   // 讓 Puppeteer 自行找 (dev 環境)
+
+  /* 最後保險：用 which chromium */
+  try {
+    const which = execSync('which chromium || true').toString().trim();
+    if (which) {
+      console.log(`   ✔ which chromium → ${which}`);
+      return which;
+    }
+  } catch { /* 無 */ }
+
+  console.log('   ⚠  No local binary detected, will fall back to channel:"chrome"');
+  return null; // 讓 puppeteer 使用 channel
 }
 
 /* ─── Root (health check) ──────────────────── */
@@ -38,7 +52,7 @@ app.get('/', (_req, res) => res.send('🟢 Service OK — hit /trigger'));
 /* ─── Main trigger ─────────────────────────── */
 app.get('/trigger', async (_req, res) => {
   try {
-    console.log('🔔  Trigger start', new Date().toISOString());
+    console.log('\n====== Trigger start', new Date().toISOString(), '======');
 
     /* Step-1: HEAD ping 叫醒 Streamlit */
     console.log('🔔  Pinging Streamlit (HEAD)…');
@@ -49,19 +63,20 @@ app.get('/trigger', async (_req, res) => {
     const executablePath = detectChrome();
     const launchOpts = executablePath
       ? { headless: 'new', executablePath, args: ['--no-sandbox', '--disable-dev-shm-usage'] }
-      : { headless: 'new', channel: 'chrome' };   // 本機開發 fallback
+      : { headless: 'new', channel: 'chrome' };
+
+    console.log('🚀  Launch opts:', launchOpts);
 
     const browser = await puppeteer.launch(launchOpts);
     const page    = await browser.newPage();
     await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 120_000 });
     await browser.close();
 
-    console.log('🎉  Trigger 完成');
+    console.log('🎉  Trigger success');
     res.send('✅ Streamlit page triggered successfully');
   } catch (err) {
-    // 把錯誤完整回傳給前端，同時寫入伺服器 log
     const detail = err?.stack || err?.message || String(err);
-    console.error('❌ Trigger failed:', detail);
+    console.error('❌ Trigger failed:\n', detail);
     res.status(500).type('text').send(`❌ Trigger failed:\n\n${detail}`);
   }
 });
@@ -69,6 +84,8 @@ app.get('/trigger', async (_req, res) => {
 /* ─── Start server ─────────────────────────── */
 app.listen(PORT, () => console.log(`🚀  Server listening on ${PORT}`));
 
-/* ─── 全域錯誤攔截 ─────────────────────────── */
-process.on('unhandledRejection', (reason) => console.error('UNHANDLED REJECTION:', reason));
-process.on('uncaughtException',  (err)    => console.error('UNCAUGHT EXCEPTION:', err));
+/* ─── Global error handlers ─────────────────── */
+process.on('unhandledRejection', (reason) =>
+  console.error('UNHANDLED REJECTION:', reason));
+process.on('uncaughtException',  (err)   =>
+  console.error('UNCAUGHT EXCEPTION:', err));
